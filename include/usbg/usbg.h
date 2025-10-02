@@ -225,6 +225,7 @@ typedef enum
 	USBG_F_UVC,
 	USBG_F_PRINTER,
 	USBG_F_9PFS,
+	USBG_F_ACCESSORY,
 	USBG_FUNCTION_TYPE_MAX,
 } usbg_function_type;
 
