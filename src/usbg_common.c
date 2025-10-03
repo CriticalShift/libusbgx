@@ -206,6 +206,7 @@ int usbg_write_buf(const char *path, const char *name,
 
 	nmb = snprintf(p, sizeof(p), "%s/%s/%s", path, name, file);
 	if (nmb >= sizeof(p)) {
+		printf("usbg_write_buf: path too long %d\n", nmb);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
@@ -224,16 +225,21 @@ int usbg_write_buf(const char *path, const char *name,
 			printf("usbg_write_buf: error writing to file. %d\n", errno);
 			nmb = usbg_translate_error(errno);
 		}
-		else
+		else {
+			printf("usbg_write_buf: IO error\n");
 			nmb = USBG_ERROR_IO;
+		}
 	}
 
 	ret = fclose(fp);
-	if (ret < 0)
+	if (ret < 0) {
+		printf("usbg_write_buf: fclose failed with %d\n", ret);
 		ret = usbg_translate_error(errno);
+	}
 	else
 		ret = nmb;
 out:
+	printf("usbg_write_buf: returning %d\n", ret);
 	return ret;
 }
 
@@ -245,12 +251,15 @@ int usbg_write_int(const char *path, const char *name, const char *file,
 	int ret;
 
 	nmb = snprintf(buf, USBG_MAX_STR_LENGTH, str, value);
-	if (nmb >= USBG_MAX_STR_LENGTH)
+	if (nmb >= USBG_MAX_STR_LENGTH) {
+		printf("usbg_write_int: number too large %d\n", nmb);
 		return USBG_ERROR_INVALID_PARAM;
+	}
 
 	ret = usbg_write_buf(path, name, file, buf, nmb);
-	if (ret > 0)
+	if (ret > 0) {
 		ret = 0;
+	}
 
 	return ret;
 }

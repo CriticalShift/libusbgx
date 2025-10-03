@@ -427,7 +427,7 @@ int usbg_f_ms_get_attrs(usbg_f_ms *mf,
 free_current_lun_attrs:
 	free(lun_attrs[i]);
 	lun_attrs[i] = NULL;
-		
+
 free_lun_attrs:
 	for (i = 0; i < nluns; ++i) {
 		usbg_f_ms_cleanup_lun_attrs(lun_attrs[i]);
@@ -450,11 +450,15 @@ int usbg_f_ms_set_attrs(usbg_f_ms *mf,
 	int ret;
 
 	ret = usbg_f_ms_set_stall(mf, attrs->stall);
-	if (ret)
+	if (ret) {
+		printf("usbg_f_ms_set_attrs: set stall failed. %d\n", ret);
 		goto out;
+	}
 
 	luns = get_lun_mask(mf);
 	usbg_f_ms_get_nluns(mf, &nluns);
+
+	printf("usbg_f_ms_set_attrs: number of luns found %d\n", nluns);
 
 	for (i = 0; i < MAX_LUNS; ++i)
 		luns_to_be[i] = -1;
@@ -469,14 +473,28 @@ int usbg_f_ms_set_attrs(usbg_f_ms *mf,
 	for (i = 0; i < MAX_LUNS; ++i) {
 		if (luns[i]) {
 			/* LUN exist and should exist so we set attr only */
-			if (luns_to_be[i] >= 0)
+			if (luns_to_be[i] >= 0) {
+				printf("usbg_f_ms_set_attrs: LUN %d exists, setting attributes.\n", i);
 				ret = usbg_f_ms_set_lun_attrs(mf, i,
 							      attrs->luns[i]);
+
+				if (ret != USBG_SUCCESS) {
+					printf("usbg_f_ms_set_attrs: setting LUN attributes failed. %d\n", ret);
+				}
+			}
 			/* LUN exist but should not so let's remove it */
-			else
+			else {
+				printf("usbg_f_ms_set_attrs: LUN %d should be removed\n", i);
 				ret = usbg_f_ms_rm_lun(mf, i);
+				if (ret != USBG_SUCCESS) {
+					printf("usbg_f_ms_set_attrs: removing LUN failed. %d\n", ret);
+				}
+			}
 		} else if (luns_to_be[i] >= 0) {
 			ret = usbg_f_ms_create_lun(mf, i, attrs->luns[i]);
+			if (ret != USBG_SUCCESS) {
+				printf("usbg_f_ms_set_attrs: create LUN failed. %d\n", ret);
+			}
 		}
 
 		if (ret)
@@ -523,26 +541,37 @@ int usbg_f_ms_create_lun(usbg_f_ms *mf, int lun_id,
 	bool *luns;
 	char lpath[USBG_MAX_PATH_LENGTH];
 
-	if (lun_id >= MAX_LUNS)
+	if (lun_id >= MAX_LUNS) {
+		printf("usbg_f_ms_create_lun: LUN ID greater than max LUNs. %d\n", lun_id);
 		return USBG_ERROR_INVALID_PARAM;
+	}
 
 	luns = get_lun_mask(mf);
-	if (luns[lun_id])
+	if (luns[lun_id]) {
+		printf("usbg_f_ms_create_lun: LUN ID %d exists\n", lun_id);
 		return USBG_ERROR_EXIST;
+	}
 
 	ret = snprintf(lpath, sizeof(lpath), "%s/%s/lun.%d/",
 		       mf->func.path, mf->func.name, lun_id);
-	if (ret >= sizeof(lpath))
+	if (ret >= sizeof(lpath)) {
+		printf("usbg_f_ms_create_lun: path too long. %d\n", ret);
 		return USBG_ERROR_PATH_TOO_LONG;
+	}
 
 	ret = mkdir(lpath, S_IRWXU|S_IRWXG|S_IRWXO);
-	if (ret)
+	if (ret) {
+		printf("usbg_f_ms_create_lun: failed creating path %s; %d\n", lpath, lun_id);
 		return usbg_translate_error(errno);
+	}
 
 	if (lattrs) {
+		printf("usbg_f_ms_create_lun: setting attributes for LUN %d\n", lun_id);
 		ret = usbg_f_ms_set_lun_attrs(mf, lun_id, lattrs);
-		if (ret)
+		if (ret) {
+			printf("usbg_f_ms_create_lun: setting attributes failed %d\n", ret);
 			goto remove_lun;
+		}
 	}
 
 	luns[lun_id] = true;
@@ -611,8 +640,10 @@ int usbg_f_ms_set_lun_attrs(usbg_f_ms *mf, int lun_id,
 					       *(union usbg_f_ms_lun_attr_val *)
 					       ((char *)lattrs
 						+ ms_lun_attr[i].offset));
-		if (ret)
+		if (ret) {
+			printf("usbg_f_ms_set_lun_attrs: Setting attribute %d failed for LUN %d. %d\n", i, lun_id, ret);
 			break;
+		}
 	}
 
 	return ret;
@@ -643,8 +674,10 @@ int usbg_f_ms_set_lun_attr_val(usbg_f_ms *mf, int lun_id,
 
 	ret = snprintf(lpath, sizeof(lpath), "%s/%s/lun.%d/",
 		       mf->func.path, mf->func.name, lun_id);
-	if (ret >= sizeof(lpath))
+	if (ret >= sizeof(lpath)) {
+		printf("usbg_f_ms_set_lun_attr_val: path too long %d\n", ret);
 		return USBG_ERROR_PATH_TOO_LONG;
+	}
 
 	return 	ms_lun_attr[lattr].set(lpath, "",
 				       ms_lun_attr[lattr].name, &val);
