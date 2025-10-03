@@ -214,13 +214,16 @@ int usbg_write_buf(const char *path, const char *name,
 	if (!fp) {
 		/* Set error correctly */
 		ret = usbg_translate_error(errno);
+		printf("usbg_write_buf: could not open path %s; %d\n", p, errno);
 		goto out;
 	}
 
 	nmb = fwrite(buf, sizeof(char), len, fp);
 	if (nmb < len) {
-		if (ferror(fp))
+		if (ferror(fp)) {
+			printf("usbg_write_buf: error writing to file. %d\n", errno);
 			nmb = usbg_translate_error(errno);
+		}
 		else
 			nmb = USBG_ERROR_IO;
 	}

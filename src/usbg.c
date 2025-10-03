@@ -1453,12 +1453,14 @@ static int usbg_create_empty_gadget(usbg_state *s, const char *name,
 
 	nmb = snprintf(gpath, sizeof(gpath), "%s/%s", s->path, name);
 	if (nmb >= sizeof(gpath)) {
+		printf("usbg_create_empty_gadget: gadget path too long. %d\n", nmb);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
 
 	*g = usbg_allocate_gadget(s->path, name, s);
 	if (!*g) {
+		printf("usbg_create_empty_gadget: could not allocate gadget.\n");
 		ret = USBG_ERROR_NO_MEM;
 		goto out;
 	}
@@ -1467,6 +1469,7 @@ static int usbg_create_empty_gadget(usbg_state *s, const char *name,
 
 	ret = mkdir(gpath, S_IRWXU|S_IRWXG|S_IRWXO);
 	if (ret != 0) {
+		printf("usbg_create_empty_gadget: could not create directory. %d\n", ret);
 		ret = usbg_translate_error(errno);
 		goto free_gadget;
 	}
@@ -1475,8 +1478,10 @@ static int usbg_create_empty_gadget(usbg_state *s, const char *name,
 	/* Should be empty but read the default */
 	ret = usbg_read_string(gad->path, gad->name,
 			       "UDC", buf);
-	if (ret != USBG_SUCCESS)
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_create_empty_gadget: could not read string.\n");
 		goto rm_gdir;
+	}
 
 	gad->udc = usbg_get_udc(s, buf);
 	if (gad->udc)
@@ -1498,8 +1503,10 @@ int usbg_create_gadget_vid_pid(usbg_state *s, const char *name,
 	int ret;
 	usbg_gadget *gad;
 
-	if (!s || !g)
+	if (!s || !g) {
+		printf("usbg_create_gadget_vid_pid: initial parameter check failed.\n");
 		return USBG_ERROR_INVALID_PARAM;
+	}
 
 	gad = usbg_get_gadget(s, name);
 	if (gad) {
@@ -1509,16 +1516,22 @@ int usbg_create_gadget_vid_pid(usbg_state *s, const char *name,
 
 	ret = usbg_create_empty_gadget(s, name, g);
 	gad = *g;
-	if (ret != USBG_SUCCESS)
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_create_gadget_vid_pid: failed creating an empty gadget. %d\n", ret);
 		goto out;
+	}
 
 	ret = usbg_write_hex16(s->path, name, "idVendor", idVendor);
-	if (ret != USBG_SUCCESS)
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_create_gadget_vid_pid: failed writing idVendor. %d\n", ret);
 		goto rm_gadget;
+	}
 
 	ret = usbg_write_hex16(s->path, name, "idProduct", idProduct);
-	if (ret != USBG_SUCCESS)
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_create_gadget_vid_pid: initial parameter check failed. %d\n", ret);
 		goto rm_gadget;
+	}
 
 	INSERT_TAILQ_STRING_ORDER(&s->gadgets, ghead, name, gad, gnode);
 
@@ -1879,21 +1892,29 @@ int usbg_set_gadget_str(usbg_gadget *g, usbg_gadget_str str, int lang,
 		goto out;
 
 	str_name = usbg_get_gadget_str_name(str);
-	if (!str_name)
+	if (!str_name) {
+		printf("usbg_set_gadget_str: failed to convert gadget name to string.\n");
 		goto out;
+	}
 
 	nmb = snprintf(path, sizeof(path), "%s/%s/%s/0x%x", g->path, g->name,
 			STRINGS_DIR, lang);
 	if (nmb >= sizeof(path)) {
+		printf("usbg_set_gadget_str: path is too long.\n");
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
 
 	ret = usbg_check_dir(path);
-	if (ret != USBG_SUCCESS)
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_set_gadget_str: gadget directory check failed. %d\n", ret);
 		goto out;
+	}
 
 	ret = usbg_write_string(path, "", str_name, val);
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_set_gadget_str: failed to write string. %d\n", ret);
+	}
 
 out:
 	return ret;
@@ -2058,8 +2079,10 @@ int usbg_create_function(usbg_gadget *g, usbg_function_type type,
 	int ret = USBG_ERROR_INVALID_PARAM;
 	int n, free_space;
 
-	if (!g || !f || !instance || *instance == '\0')
+	if (!g || !f || !instance || *instance == '\0') {
+		printf("usbg_create_function: initial parameter check failed\n");
 		return ret;
+	}
 
 	func = usbg_get_function(g, type, instance);
 	if (func) {
@@ -2071,6 +2094,7 @@ int usbg_create_function(usbg_gadget *g, usbg_function_type type,
 	n = snprintf(fpath, sizeof(fpath), "%s/%s/%s", g->path, g->name,
 			FUNCTIONS_DIR);
 	if (n >= sizeof(fpath)) {
+		printf("usbg_create_function: function dir path too long %d\n", n);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
@@ -2078,6 +2102,7 @@ int usbg_create_function(usbg_gadget *g, usbg_function_type type,
 	*f = usbg_allocate_function(fpath, type, instance, g);
 	func = *f;
 	if (!func) {
+		printf("usbg_create_function: can't allocate function\n");
 		ERROR("allocating function\n");
 		ret = USBG_ERROR_NO_MEM;
 		goto out;
@@ -2086,19 +2111,23 @@ int usbg_create_function(usbg_gadget *g, usbg_function_type type,
 	free_space = sizeof(fpath) - n;
 	n = snprintf(&(fpath[n]), free_space, "/%s", func->name);
 	if (n >= free_space) {
+		printf("usbg_create_function: function name path too long %d : %d\n", n, free_space);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto free_func;
 	}
 
 	ret = mkdir(fpath, S_IRWXU | S_IRWXG | S_IRWXO);
 	if (ret) {
+		printf("usbg_create_function: mkdir failed while making the function directory\n");
 		ret = usbg_translate_error(errno);
 		goto free_func;
 	}
 
 	if (f_attrs) {
+		printf("usbg_create_function: setting function attributes\n");
 		ret = usbg_set_function_attrs(func, f_attrs);
 		if (ret != USBG_SUCCESS)
+			printf("usbg_create_function: failed setting function attributes %d\n", ret);
 			goto remove_dir;
 	}
 
@@ -2188,8 +2217,10 @@ int usbg_create_config(usbg_gadget *g, int id, const char *label,
 	int ret = USBG_ERROR_INVALID_PARAM;
 	int n, free_space;
 
-	if (!g || !c || id <= 0 || id > 255)
+	if (!g || !c || id <= 0 || id > 255) {
+		printf("usbg_create_config: initial param check failed.\n");
 		goto out;
+	}
 
 	if (!label)
 		label = DEFAULT_CONFIG_LABEL;
@@ -2204,6 +2235,7 @@ int usbg_create_config(usbg_gadget *g, int id, const char *label,
 	n = snprintf(cpath, sizeof(cpath), "%s/%s/%s", g->path, g->name,
 			CONFIGS_DIR);
 	if (n >= sizeof(cpath)) {
+		printf("usbg_create_config: path too long. %d\n", n);
 		ret =  USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
@@ -2220,6 +2252,7 @@ int usbg_create_config(usbg_gadget *g, int id, const char *label,
 	/* Append string at the end of previous one */
 	n = snprintf(&(cpath[n]), free_space, "/%s", (*c)->name);
 	if (n >= free_space) {
+		printf("usbg_create_config: absolute path too long. %d\n", n);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		usbg_free_config(conf);
 		goto out;
@@ -2227,21 +2260,26 @@ int usbg_create_config(usbg_gadget *g, int id, const char *label,
 
 	ret = mkdir(cpath, S_IRWXU | S_IRWXG | S_IRWXO);
 	if (ret) {
+		printf("usbg_create_config: failed to create config directory. %d\n", errno);
 		ret = usbg_translate_error(errno);
 		goto free_config;
 	}
 
 	if (c_attrs) {
 		ret = usbg_set_config_attrs(conf, c_attrs);
-		if (ret != USBG_SUCCESS)
+		if (ret != USBG_SUCCESS) {
+			printf("usbg_create_config: failed to set config attributes. %d\n", ret);
 			goto rm_config;
+		}
 	}
 
 	if (c_strs) {
 		ret = usbg_set_config_string(conf, LANG_US_ENG,
 					     c_strs->configuration);
-		if (ret != USBG_SUCCESS)
+		if (ret != USBG_SUCCESS) {
+			printf("usbg_create_config: failed to set config string. %d\n", ret);
 			goto rm_config;
+		}
 	}
 
 	INSERT_TAILQ_STRING_ORDER(&g->configs, chead, name,
@@ -2376,6 +2414,7 @@ int usbg_add_config_function(usbg_config *c, const char *name, usbg_function *f)
 	int ret = USBG_SUCCESS;
 
 	if (!c || !f) {
+		printf("usbg_add_config_function: initial param check failed.\n");
 		ret = USBG_ERROR_INVALID_PARAM;
 		goto out;
 	}
@@ -2399,18 +2438,21 @@ int usbg_add_config_function(usbg_config *c, const char *name, usbg_function *f)
 
 	nmb = snprintf(fpath, sizeof(fpath), "%s/%s", f->path, f->name);
 	if (nmb >= sizeof(fpath)) {
+		printf("usbg_add_config_function: function path too long. %d\n", nmb);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
 
 	nmb = snprintf(bpath, sizeof(bpath), "%s/%s", c->path, c->name);
 	if (nmb >= sizeof(bpath)) {
+		printf("usbg_add_config_function: binding path too long. %d\n", nmb);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto out;
 	}
 
 	b = usbg_allocate_binding(bpath, name, c);
 	if (!b) {
+		printf("usbg_add_config_function: failed to allocate binding.\n");
 		ret = USBG_ERROR_NO_MEM;
 		goto out;
 	}
@@ -2419,12 +2461,14 @@ int usbg_add_config_function(usbg_config *c, const char *name, usbg_function *f)
 	b->target = f;
 	nmb = snprintf(&(bpath[nmb]), free_space, "/%s", name);
 	if (nmb >= free_space) {
+		printf("usbg_add_config_function: binding absolute path too long. %d\n", nmb);
 		ret = USBG_ERROR_PATH_TOO_LONG;
 		goto free_binding;
 	}
 
 	ret = symlink(fpath, bpath);
 	if (ret != 0) {
+		printf("usbg_add_config_function: symlink creation failed. %d\n", errno);
 		ret = usbg_translate_error(errno);
 		goto free_binding;
 	}
@@ -2556,13 +2600,17 @@ int usbg_enable_gadget(usbg_gadget *g, usbg_udc *udc)
 
 	if (!udc) {
 		udc = usbg_get_first_udc(g->parent);
-		if (!udc)
+		if (!udc) {
+			printf("usbg_enable_gadget: could not find UDC.\n");
 			return ret;
+		}
 	}
 
 	ret = usbg_write_string(g->path, g->name, "UDC", udc->name);
-	if (ret != USBG_SUCCESS)
+	if (ret != USBG_SUCCESS) {
+		printf("usbg_enable_gadget: failed to write string.\n");
 		goto out;
+	}
 	/* If gadget has been detached and we didn't noticed
 	 * it we have to clean up now.
 	 */
