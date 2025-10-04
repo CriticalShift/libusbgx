@@ -2419,6 +2419,12 @@ int usbg_add_config_function(usbg_config *c, const char *name, usbg_function *f)
 		goto out;
 	}
 
+	if (name) {
+		printf("usbg_add_config_function: name: %s\n", name);
+	}
+	printf("usbg_add_config_function: f->name: %s\n", f->name);
+	printf("usbg_add_config_function: f->path: %s\n", f->path);
+
 	if (!name)
 		name = f->name;
 
