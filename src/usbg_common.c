@@ -204,6 +204,8 @@ int usbg_write_buf(const char *path, const char *name,
 	int nmb;
 	int ret = USBG_SUCCESS;
 
+	printf("usb_write_buf: %s; %s; %s; %s\n", path, name, file, buf);
+
 	nmb = snprintf(p, sizeof(p), "%s/%s/%s", path, name, file);
 	if (nmb >= sizeof(p)) {
 		printf("usbg_write_buf: path too long %d\n", nmb);

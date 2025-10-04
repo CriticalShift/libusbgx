@@ -2468,7 +2468,7 @@ int usbg_add_config_function(usbg_config *c, const char *name, usbg_function *f)
 
 	ret = symlink(fpath, bpath);
 	if (ret != 0) {
-		printf("usbg_add_config_function: symlink creation failed. %d\n", errno);
+		printf("usbg_add_config_function: symlink creation failed. %s; %s; %d\n", fpath, bpath, errno);
 		ret = usbg_translate_error(errno);
 		goto free_binding;
 	}
